@@ -1,0 +1,57 @@
+--- PAGE 1 ---
+
+Observations about the data
+
+CSC311 Progress Report
+
+We explored the dataset to understand the structure and distribution of the features. The dataset contains responses to questions about three different paintings, and the goal is to predict which painting a student was referring to.
+
+From our initial exploration, we observed that:
+
+• The dataset contains a mixture of numerical and categorical features.
+
+• Some features appear to have different distributions across the three classes, suggesting they may be useful for classification.
+
+• Certain features may contain missing or inconsistent values, which will require preprocessing before training models.
+
+• Some features contains textual description, which might be unnecessary in this task.
+
+These observations suggest how we should preprocess the data and provide some information in feature selection.
+
+Pre-processing steps
+
+To ensure the consistency of the data, the following preprocesses must be performed:
+
+• Handling missing values: remove the missing/invalid values.
+
+Feature normalization: features like costs have extremely large range. Convert some non-numerical values into numerical representations. • Remove or ignore features that will not help in decision making.
+
+Model families
+
+We plan to experiment with the following three different model families:
+
+• Logistic Regression. Logistic regression is a simple and interpretable linear classifier. It works well when the relationship between features and the target class is approximately linear.
+
+• Decision Trees. The situation in this task is very similar to the heart disease example.
+
+• Naive Bayes. Naive Bayes classifiers are simple, computationally efficient, and easy to implement for the final prediction script using numpy. Naive Bayes also performs well on tabular data and provides a strong baseline for classification tasks.
+
+Model validation strategy
+
+--- PAGE 2 ---
+
+We plan to use:
+
+Train/validation split to evaluate model performance on unseen data.
+
+k-fold cross-validation by splitting the data into smaller training and validation sets.
+
+Progress made so far
+
+So far we have:
+
+• Loaded and explored the dataset.
+
+• Performed preliminary data inspection to understand feature distributions and implemented basic preprocessing steps.
+
+• Begun testing simple models such as logistic regression to establish a expectation of the performances of the models.

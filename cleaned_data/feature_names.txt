@@ -1,0 +1,22 @@
+emotion_intensity
+num_colours
+num_objects
+feel_sombre
+feel_content
+feel_calm
+feel_uneasy
+willing_to_pay_log
+room_Bedroom
+room_Bathroom
+room_Office
+room_Living room
+room_Dining room
+view_with_Friends
+view_with_Family members
+view_with_Coworkers/Classmates
+view_with_Strangers
+view_with_By yourself
+season_Spring
+season_Summer
+season_Fall
+season_Winter

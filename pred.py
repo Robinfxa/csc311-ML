@@ -135,9 +135,8 @@ def preprocess(df):
         for cat in categories:
             col_name = f"{col}_{cat}"
             if col in df.columns:
-                df[col_name] = df[col].astype(str).apply(lambda x, c=cat: 1 if c in x else 0)
-                mask = df[col].isna() | (df[col].astype(str).str.strip() == "")
-                df.loc[mask, col_name] = 0
+                col_str = df[col].fillna("").astype(str)
+                df[col_name] = col_str.apply(lambda x, c=cat: 1 if c in x else 0)
             else:
                 df[col_name] = 0
 

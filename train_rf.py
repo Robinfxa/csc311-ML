@@ -93,7 +93,7 @@ def grid_search(X_train, y_train):
     """Grid search over RF hyperparameters with 5-fold stratified CV."""
     param_grid = {
         "n_estimators": [100, 200, 300, 400, 500],
-        "max_depth":    [None, 5, 8, 10, 15, 20],
+        "max_depth":    [None, 5, 8, 20],
         "max_features": ["sqrt", "log2"],
     }
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -168,15 +168,39 @@ def plot_tuning_curve(results_df):
 # ═══════════════════════════════════════════════════════════════════════
 
 def train_best_model(X_train, y_train, X_val, y_val, results_df):
-    """Train final model with best hyperparameters, evaluate on val set."""
-    best_row = results_df.loc[results_df["mean_cv_accuracy"].idxmax()]
-    best_n_est  = int(best_row["n_estimators"])
-    best_max_d  = None if best_row["max_depth"] == "None" else int(best_row["max_depth"])
-    best_max_f  = best_row["max_features"]
+    """Let user pick a config from the grid search results, then train it."""
+    # Print full results table for user to choose
+    print("\n  Full Grid Search Results:")
+    print(f"  {'#':>3}  {'n_est':>5}  {'max_d':>6}  {'max_f':>6}  {'cv_acc':>7}  {'std':>6}  {'train_acc':>9}")
+    print("  " + "-" * 56)
+    for i, row in results_df.iterrows():
+        print(f"  {i:>3}  {int(row['n_estimators']):>5}  {str(row['max_depth']):>6}  "
+              f"{row['max_features']:>6}  {row['mean_cv_accuracy']:>7.4f}  "
+              f"{row['std_cv_accuracy']:>6.4f}  {row['train_accuracy']:>9.4f}")
 
-    print(f"\n  Best hyperparameters: n_estimators={best_n_est}, "
+    best_idx = results_df["mean_cv_accuracy"].idxmax()
+    while True:
+        choice = input(f"\n  Enter row # to use (default={best_idx}, highest CV): ").strip()
+        if choice == "":
+            chosen = results_df.loc[best_idx]
+            break
+        try:
+            idx = int(choice)
+            if idx in results_df.index:
+                chosen = results_df.loc[idx]
+                break
+            print(f"  Invalid index, pick from 0-{len(results_df)-1}")
+        except ValueError:
+            print("  Please enter a number.")
+
+    best_n_est  = int(chosen["n_estimators"])
+    best_max_d  = None if chosen["max_depth"] == "None" else int(chosen["max_depth"])
+    best_max_f  = chosen["max_features"]
+
+    print(f"\n  Selected: n_estimators={best_n_est}, "
           f"max_depth={best_max_d}, max_features={best_max_f}")
-    print(f"  Best CV accuracy: {best_row['mean_cv_accuracy']:.4f} ± {best_row['std_cv_accuracy']:.4f}")
+    print(f"  CV accuracy: {chosen['mean_cv_accuracy']:.4f} ± {chosen['std_cv_accuracy']:.4f}  "
+          f"train: {chosen['train_accuracy']:.4f}")
 
     model = RandomForestClassifier(
         n_estimators=best_n_est,

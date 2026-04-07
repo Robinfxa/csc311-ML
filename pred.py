@@ -23,7 +23,6 @@ import pandas as pd
 BASE_DIR  = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR  = os.path.join(BASE_DIR, "cleaned_data")
 LR_DIR    = os.path.join(BASE_DIR, "lr_results")
-RF_DIR    = os.path.join(BASE_DIR, "rf_results")
 NB_DIR    = os.path.join(BASE_DIR, "nb_results")
 
 # ── label names (alphabetical) ─────────────────────────────────────────
@@ -73,6 +72,7 @@ _lr_W = np.load(os.path.join(LR_DIR, "lr_weights.npy"))
 _lr_b = np.load(os.path.join(LR_DIR, "lr_bias.npy"))
 
 # --- Random Forest tree structure ---
+RF_DIR    = os.path.join(BASE_DIR, "rf_results")
 _rf_children_left  = np.load(os.path.join(RF_DIR, "rf_children_left.npy"))
 _rf_children_right = np.load(os.path.join(RF_DIR, "rf_children_right.npy"))
 _rf_feature        = np.load(os.path.join(RF_DIR, "rf_feature.npy"))
@@ -159,14 +159,9 @@ def _predict_lr(X_scaled):
 
 
 def _predict_rf(X_scaled):
-    """
-    Random Forest: vectorized pure-numpy tree traversal.
-    For each tree, propagate all samples simultaneously down the tree.
-    Accumulate leaf class counts, then argmax.
-    """
+    """Random Forest: vectorized pure-numpy tree traversal."""
     n_samples = X_scaled.shape[0]
     votes = np.zeros((n_samples, _rf_n_classes), dtype=np.float64)
-
     for t in range(_rf_n_trees):
         nodes = np.zeros(n_samples, dtype=np.int32)
         while True:
@@ -174,16 +169,11 @@ def _predict_rf(X_scaled):
             is_leaf = left == -1
             if is_leaf.all():
                 break
-            feat   = _rf_feature[t, nodes]
-            thresh = _rf_threshold[t, nodes]
-            # clip feat to valid range (padded nodes have feat=-2)
-            feat_safe = np.clip(feat, 0, X_scaled.shape[1] - 1)
-            go_right  = X_scaled[np.arange(n_samples), feat_safe] > thresh
-            right     = _rf_children_right[t, nodes]
-            new_nodes = np.where(go_right, right, left)
+            feat_safe = np.clip(_rf_feature[t, nodes], 0, X_scaled.shape[1] - 1)
+            go_right  = X_scaled[np.arange(n_samples), feat_safe] > _rf_threshold[t, nodes]
+            new_nodes = np.where(go_right, _rf_children_right[t, nodes], left)
             nodes     = np.where(is_leaf, nodes, new_nodes)
-        votes += _rf_value[t, nodes]   # (n_samples, n_classes)
-
+        votes += _rf_value[t, nodes]
     return np.argmax(votes, axis=1)
 
 
@@ -208,21 +198,15 @@ def _predict_nb(X_scaled):
 # ═══════════════════════════════════════════════════════════════════════
 
 def _majority_vote(pred_lr, pred_rf, pred_nb):
-    """
-    For each sample, take the majority vote of three classifiers.
-    Ties broken by preferring RF > LR > NB (RF is highest CV accuracy).
-    """
+    """Weighted vote: LR=2.0, NB=1.5, RF=1.0."""
     n = len(pred_lr)
     result = np.empty(n, dtype=np.int32)
     for i in range(n):
-        votes = [pred_lr[i], pred_rf[i], pred_nb[i]]
-        counts = np.bincount(votes, minlength=len(LABEL_NAMES))
-        max_count = counts.max()
-        if max_count >= 2:
-            result[i] = np.argmax(counts)
-        else:
-            # All three disagree — fall back to RF
-            result[i] = pred_rf[i]
+        weights = np.zeros(len(LABEL_NAMES), dtype=np.float64)
+        weights[pred_lr[i]] += 2.0
+        weights[pred_nb[i]] += 1.5
+        weights[pred_rf[i]] += 1.0
+        result[i] = np.argmax(weights)
     return result
 
 

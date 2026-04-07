@@ -92,8 +92,8 @@ def save_label_map():
 def grid_search(X_train, y_train):
     """Grid search over RF hyperparameters with 5-fold stratified CV."""
     param_grid = {
-        "n_estimators": [100, 300, 500],
-        "max_depth":    [None, 10, 20],
+        "n_estimators": [100, 200, 300, 400, 500],
+        "max_depth":    [None, 5, 8, 10, 15, 20],
         "max_features": ["sqrt", "log2"],
     }
     cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
@@ -249,6 +249,54 @@ def export_model(model):
           f"max_features={model.max_features}")
 
 
+def export_tree_structure(model):
+    """
+    Export the full forest as stacked numpy arrays for pure-numpy inference.
+
+    Per tree arrays (shape: n_estimators x max_nodes):
+        rf_children_left.npy   — left child index  (-1 = leaf)
+        rf_children_right.npy  — right child index (-1 = leaf)
+        rf_feature.npy         — split feature index (-2 = leaf)
+        rf_threshold.npy       — split threshold
+    Per tree leaf values (shape: n_estimators x max_nodes x n_classes):
+        rf_value.npy           — class counts at each node
+    """
+    os.makedirs(OUT_DIR, exist_ok=True)
+    trees     = model.estimators_
+    n_trees   = len(trees)
+    n_classes = model.n_classes_
+    max_nodes = max(t.tree_.node_count for t in trees)
+
+    children_left  = np.full((n_trees, max_nodes), -1, dtype=np.int32)
+    children_right = np.full((n_trees, max_nodes), -1, dtype=np.int32)
+    feature        = np.full((n_trees, max_nodes), -2, dtype=np.int32)
+    threshold      = np.full((n_trees, max_nodes), -2.0, dtype=np.float64)
+    value          = np.zeros((n_trees, max_nodes, n_classes), dtype=np.float64)
+
+    for i, tree in enumerate(trees):
+        t = tree.tree_
+        n = t.node_count
+        children_left[i,  :n] = t.children_left
+        children_right[i, :n] = t.children_right
+        feature[i,        :n] = t.feature
+        threshold[i,      :n] = t.threshold
+        value[i,          :n] = t.value[:, 0, :]   # shape: (n_nodes, n_classes)
+
+    np.save(os.path.join(OUT_DIR, "rf_children_left.npy"),  children_left)
+    np.save(os.path.join(OUT_DIR, "rf_children_right.npy"), children_right)
+    np.save(os.path.join(OUT_DIR, "rf_feature.npy"),        feature)
+    np.save(os.path.join(OUT_DIR, "rf_threshold.npy"),      threshold)
+    np.save(os.path.join(OUT_DIR, "rf_value.npy"),          value)
+
+    print(f"\n  Exported tree structure:")
+    print(f"    n_estimators={n_trees}  max_nodes={max_nodes}  n_classes={n_classes}")
+    print(f"    children_left:  {children_left.shape}")
+    print(f"    children_right: {children_right.shape}")
+    print(f"    feature:        {feature.shape}")
+    print(f"    threshold:      {threshold.shape}")
+    print(f"    value:          {value.shape}")
+
+
 # ═══════════════════════════════════════════════════════════════════════
 #  MAIN
 # ═══════════════════════════════════════════════════════════════════════
@@ -285,6 +333,7 @@ def main():
     print("\n5. MODEL EXPORT")
     print("-" * 40)
     export_model(model)
+    export_tree_structure(model)
 
     print("\n" + "=" * 60)
     print("TRAINING COMPLETE [OK]")
